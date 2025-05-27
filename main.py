@@ -439,7 +439,11 @@ def main_voice_assistant():
             # Corrected YouTube URL to search directly, not a malformed one
             open_website("https://www.youtube.com")
         elif "open wikipedia" in command:
-            open_website("https://www.wikipedia.org")
+         
+            open_website("https://chatgpt.com")
+        elif "open linkedin " in command:
+            open_website("https://www.linkedin.com")
+            
         elif "open ster-kinekor" in command or "go to ster-kinekor" in command:
             open_website("https://www.sterkinekor.com/")
         elif "search for" in command:
