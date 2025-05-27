@@ -26,7 +26,7 @@ ASSISTANT_NAME = "Jarvis"
 # OPENWEATHER_API_KEY=your_openweather_api_key_here
 # GEMINI_API_KEY=your_gemini_api_key_here
 OPENWEATHER_API_KEY = os.getenv('OPENWEATHER_API_KEY')
-GEMINI_API_KEY = os.getenv('AIzaSyA3kzP0Gj3Ism7qOtm58R-goSdOzhbTk0Y')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 
 # Configure Gemini API
 if GEMINI_API_KEY:
