@@ -154,7 +154,6 @@ def open_application(app_name):
     except Exception as e:
         speak(f"An unexpected error occurred while trying to open {app_name}: {e}")
 
-
 def open_website(url):
     """Opens a specified URL in the default web browser."""
     speak(f"Opening {url} in your browser.")
@@ -240,12 +239,10 @@ def main_voice_assistant():
                 speak(f"It's a pleasure to meet you, {user_name}. Hello {user_name}, how can I assist you today?")
             else:
                 speak("I heard you say 'my name is', but I didn't catch your name. Could you please tell me your name?")
-        elif "i am Thabang" in command or "this is Thabang" in command:
-            speak("It's a pleasure to meet you, Thabang. Hello Thabang, how can I assist you today?")
-
-        # 2. Maker/Creator (Modified)
+        
+        # 2. Maker/Creator (Reinstated specific maker credit)
         elif "who built you" in command or "who is your maker" in command or "who created you" in command:
-            speak(f"I am {ASSISTANT_NAME}, a virtual assistant. My capabilities are continuously being developed.")
+            speak("I am programmed by Thabang Mthimkulu.")
 
         # 3. Basic Greetings and Chit-Chat
         elif "hello" in command or "hi" in command:
@@ -257,15 +254,15 @@ def main_voice_assistant():
         elif "thank you" in command or "thanks" in command:
             speak("You're welcome! Is there anything else I can assist you with?")
 
-        # 4. Desktop Application Commands (More generalized attempt)
+        # 4. Desktop Application Commands (More generalized with specific examples)
         elif "open application" in command:
             app_name_parts = command.split("open application", 1)
             if len(app_name_parts) > 1:
                 app_name = app_name_parts[1].strip()
                 open_application(app_name)
             else:
-                speak("Which application would you like me to open?")
-        # Keep specific commands for common apps for better recognition
+                speak("Which application would you like me to open? You can say 'open application' followed by the app name, like 'open application Safari'.")
+        # Keep specific commands for common apps for potentially better recognition
         elif "open safari" in command:
             open_application("Safari")
         elif "open chrome" in command or "open google chrome" in command:
@@ -279,11 +276,12 @@ def main_voice_assistant():
         elif "open messages" in command:
             open_application("Messages")
         
-        # 5. Web Browse Commands (specific sites + general search)
+        # 5. Web Browse Commands (specific sites + general search + improved URL parsing)
         elif "open google" in command:
             open_website("https://www.google.com")
         elif "open youtube" in command:
-            open_website("https://www.youtube.com") # Corrected YouTube URL
+            # Corrected YouTube URL to ensure it works correctly
+            open_website("https://www.youtube.com") 
         elif "open wikipedia" in command:
             open_website("https://www.wikipedia.org")
         elif "open ster-kinekor" in command or "go to ster-kinekor" in command:
@@ -293,10 +291,11 @@ def main_voice_assistant():
             website_query_parts = command.split("website", 1)
             if len(website_query_parts) > 1:
                 target_url = website_query_parts[1].strip()
-                # Remove common phrases like "dot com", "dot org" from the end if they are just words
+                # Replace common spoken URL parts with actual characters
                 target_url = target_url.replace(" dot com", ".com").replace(" dot org", ".org").replace(" dot net", ".net")
                 target_url = target_url.replace(" www ", "www.").replace(" slash ", "/").replace(" colon ", ":")
-
+                target_url = target_url.replace(" space ", "") # Remove "space" if spoken in domain
+                
                 # Simple check to prepend https:// if no scheme is provided
                 if target_url and not (target_url.startswith("http://") or target_url.startswith("https://")):
                     target_url = "https://" + target_url
@@ -321,15 +320,19 @@ def main_voice_assistant():
             else:
                 speak("What would you like me to Google?")
 
-        # 6. Music Playback
-        elif "play music" in command or "play a song" in command:
-            song_query_parts = command.split("play music", 1)
-            if len(song_query_parts) == 1: # Maybe "play a song"
-                song_query_parts = command.split("play a song", 1)
+        # 6. Music Playback (YouTube)
+        elif "play music" in command or "play a song" in command or "play the song" in command:
+            song_query = ""
+            if "play music" in command:
+                song_query = command.split("play music", 1)[1].strip()
+            elif "play a song" in command:
+                song_query = command.split("play a song", 1)[1].strip()
+            elif "play the song" in command:
+                song_query = command.split("play the song", 1)[1].strip()
 
-            if len(song_query_parts) > 1 and song_query_parts[1].strip():
-                song_name = song_query_parts[1].strip()
-                play_music(song_name)
+            if song_query:
+                # Direct Youtube URL for better music playback
+                play_music(f"https://www.youtube.com/results?search_query={song_query.replace(' ', '+')}")
             else:
                 speak("What song or artist would you like me to play?")
 
@@ -363,8 +366,8 @@ def main_voice_assistant():
         # 9. Help/Capability Inquiry (Updated)
         elif "what can you do" in command:
             speak("I am programmed to train a sentiment analysis model, predict sentiment from text, and search the web.")
-            speak("I can open applications, open specific websites like Google, YouTube, Wikipedia, and Ster-Kinekor.")
-            speak("I can also try to open any website if you say 'open website' followed by the address, like 'open website google dot com'.")
+            speak("I can open applications like Safari or Calculator, or you can say 'open application' followed by the app name.")
+            speak("I can open specific websites like Google, YouTube, Wikipedia, and Ster-Kinekor. I can also open any website if you say 'open website' followed by the address, like 'open website google dot com'.")
             speak("I can play music by searching YouTube for songs, tell you the time and date, and list contents of your main folders.")
             speak("You can also ask me about my name or say 'my name is' followed by your name.")
 
