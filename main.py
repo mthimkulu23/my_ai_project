@@ -369,7 +369,7 @@ def main_voice_assistant():
             speak("I can open applications like Safari or Calculator, or you can say 'open application' followed by the app name.")
             speak("I can open specific websites like Google, YouTube, Wikipedia, and Ster-Kinekor. I can also open any website if you say 'open website' followed by the address, like 'open website google dot com'.")
             speak("I can play music by searching YouTube for songs, tell you the time and date, and list contents of your main folders.")
-            speak("You can also ask me about my name or say 'my name is' followed by your name.")
+            speak("You can also ask me about my name.")
 
         # 10. Exit Commands
         elif "goodbye" in command or "exit" in command or "shut down" in command or "stop listening" in command:
@@ -380,7 +380,7 @@ def main_voice_assistant():
         elif command:
             speak("I heard that, but I'm not yet programmed to respond to that specific command.")
             speak("For now, I can train the model, predict sentiment, open applications, open any website, search the web, play music, or tell you the time and date.")
-            speak("You can also ask me about my name or say 'my name is' followed by your name.")
+            speak("You can also ask me about my name.")
 
 if __name__ == "__main__":
     main_voice_assistant()
