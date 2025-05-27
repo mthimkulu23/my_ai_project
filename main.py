@@ -22,11 +22,11 @@ VECTORIZER_PATH = 'models/tfidf_vectorizer.pkl'
 ASSISTANT_NAME = "Jarvis"
 
 # API Keys from environment variables
-# IMPORTANT: Create a .env file in your project root with these lines:
-# OPENWEATHER_API_KEY=your_openweather_api_key_here
-# GEMINI_API_KEY=your_gemini_api_key_here
+# IMPORTANT: Create a .env file in my project root with these lines:
+# OPENWEATHER_API_KEY=my_openweather_api_key_here
+# GEMINI_API_KEY=my_gemini_api_key_here
 OPENWEATHER_API_KEY = os.getenv('OPENWEATHER_API_KEY')
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY') # CORRECTED: retrieves the value for 'GEMINI_API_KEY' from .env
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY') # CORRECTED: retrieves the value for 'GEMINI_API_KEY' 
 
 # Configure Gemini API
 if GEMINI_API_KEY:
@@ -146,7 +146,7 @@ def open_email_client():
     speak("Opening your email client.")
     if sys.platform == "darwin": # macOS
         subprocess.run(["open", "-a", "Mail"], check=False) # Attempts to open Apple Mail
-        # You could also open a webmail like:
+        # l could also open a webmail like:
         # open_website("https://mail.google.com")
     elif sys.platform == "win32": # Windows
         os.startfile("mailto:") # Opens default email client
