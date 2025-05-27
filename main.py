@@ -4,16 +4,37 @@ import os
 import sys
 import pyttsx3
 import time
+import requests # For making HTTP requests (e.g., weather API)
+import google.generativeai as genai # For Gemini API
+from dotenv import load_dotenv # For loading environment variables
 from src.data_processor import DataProcessor
 from src.model_trainer import ModelTrainer
 from src.predictor import Predictor
 from sklearn.model_selection import train_test_split
+
+# Load environment variables from .env file
+load_dotenv()
 
 # --- Configuration Constants ---
 DATA_FILE = 'data/training_data.csv'
 MODEL_PATH = 'models/sentiment_model.pkl'
 VECTORIZER_PATH = 'models/tfidf_vectorizer.pkl'
 ASSISTANT_NAME = "Jarvis"
+
+# API Keys from environment variables
+# IMPORTANT: Create a .env file in your project root with these lines:
+# OPENWEATHER_API_KEY=your_openweather_api_key_here
+# GEMINI_API_KEY=your_gemini_api_key_here
+OPENWEATHER_API_KEY = os.getenv('OPENWEATHER_API_KEY')
+GEMINI_API_KEY = os.getenv('AIzaSyA3kzP0Gj3Ism7qOtm58R-goSdOzhbTk0Y')
+
+# Configure Gemini API
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    gemini_model = genai.GenerativeModel('gemini-pro')
+else:
+    print("Warning: GEMINI_API_KEY not found. ChatGPT-like functionality will be disabled.")
+    gemini_model = None
 
 # --- Global variable for the TTS engine ---
 engine = None
@@ -23,8 +44,8 @@ def initialize_tts_engine():
     global engine
     if sys.platform == "darwin": # macOS
         print("Detected macOS. Using native 'say' command for TTS.")
-        engine = None
-    else: # For Linux/Windows, attempt to use pyttsx3 with espeak or auto
+        engine = None # Use native 'say' command
+    else: # For Linux/Windows, attempt to use pyttsx3
         try:
             # Try espeak first as it's often more reliable on Linux
             engine = pyttsx3.init('espeak')
@@ -42,6 +63,7 @@ def initialize_tts_engine():
             voices = engine.getProperty('voices')
             if voices:
                 try:
+                    # Attempt to set a specific voice, e.g., the first one
                     engine.setProperty('voice', voices[0].id)
                     print(f"Set voice to: {voices[0].name}")
                 except IndexError:
@@ -49,15 +71,14 @@ def initialize_tts_engine():
             else:
                 print("Warning: No voices found by pyttsx3 at all. Using system default voice if available.")
 
-            engine.setProperty('rate', 180)
+            engine.setProperty('rate', 180) # Set speech rate
             print(f"Set speech rate to: {engine.getProperty('rate')}")
         else:
             print("TTS engine could not be initialized. Speech output will be through print statements only.")
 
-
 def speak(text):
     """Converts text to speech, using 'say' on macOS and pyttsx3 elsewhere."""
-    print(f"{ASSISTANT_NAME}: {text}")
+    print(f"{ASSISTANT_NAME}: {text}") # Always print the text
 
     if sys.platform == "darwin":
         subprocess.call(['say', text])
@@ -65,10 +86,8 @@ def speak(text):
         engine.say(text)
         engine.runAndWait()
     else:
-        # Fallback to print if TTS engine isn't available
-        # The print statement is already at the top of this function
+        # If no TTS engine, the print statement above is the only output
         pass
-
 
 def listen():
     """Listens for audio input and converts it to text."""
@@ -77,7 +96,6 @@ def listen():
         print(f"{ASSISTANT_NAME}: Listening...")
         r.pause_threshold = 0.8
         r.energy_threshold = 400
-        # r.adjust_for_ambient_noise(source) # Potentially noisy, commented out in original code
         audio = r.listen(source)
     try:
         print(f"{ASSISTANT_NAME}: Recognizing...")
@@ -91,7 +109,71 @@ def listen():
         speak(f"Could not request results from Google Speech Recognition service; {e}")
         return ""
 
-# --- Core AI Logic ---
+# --- New Functionalities ---
+
+def get_weather(city="Johannesburg"):
+    """Fetches and speaks the current weather for a given city."""
+    if not OPENWEATHER_API_KEY:
+        speak("I cannot get weather information. The OpenWeatherMap API key is not configured.")
+        return
+
+    base_url = "http://api.openweathermap.org/data/2.5/weather?"
+    complete_url = f"{base_url}q={city}&appid={OPENWEATHER_API_KEY}&units=metric"
+
+    try:
+        response = requests.get(complete_url)
+        data = response.json()
+
+        if data["cod"] == 200:
+            main = data["main"]
+            weather = data["weather"][0]
+            temperature = main["temp"]
+            pressure = main["pressure"]
+            humidity = main["humidity"]
+            description = weather["description"]
+
+            speak(f"The weather in {city} is {description} with a temperature of {temperature:.1f} degrees Celsius.")
+            speak(f"Humidity is {humidity} percent and atmospheric pressure is {pressure} hectopascals.")
+        else:
+            speak(f"Sorry, I couldn't find weather information for {city}. Please check the city name.")
+    except requests.exceptions.ConnectionError:
+        speak("I cannot connect to the weather service. Please check your internet connection.")
+    except Exception as e:
+        speak(f"An error occurred while fetching weather data: {e}")
+
+def open_email_client():
+    """Opens the default email client or a webmail service."""
+    speak("Opening your email client.")
+    if sys.platform == "darwin": # macOS
+        subprocess.run(["open", "-a", "Mail"], check=False) # Attempts to open Apple Mail
+        # You could also open a webmail like:
+        # open_website("https://mail.google.com")
+    elif sys.platform == "win32": # Windows
+        os.startfile("mailto:") # Opens default email client
+        # Or open a webmail:
+        # open_website("https://mail.google.com")
+    elif sys.platform == "linux": # Linux
+        subprocess.run(["xdg-open", "mailto:"], check=False) # Opens default email client
+        # Or open a webmail:
+        # open_website("https://mail.google.com")
+    else:
+        speak("Sorry, I don't know how to open the email client on this operating system.")
+
+def ask_gemini(query):
+    """Sends a query to the Gemini API and speaks the response."""
+    if not gemini_model:
+        speak("I cannot answer general questions. The Gemini API is not configured.")
+        return
+
+    speak("Thinking...")
+    try:
+        response = gemini_model.generate_content(query)
+        speak(response.text)
+    except Exception as e:
+        speak(f"I encountered an error while trying to answer your question: {e}")
+        speak("Please try asking again.")
+
+# --- Existing Core AI Logic (Sentiment Analysis) ---
 def train_new_model():
     """Handles the training process of the AI model."""
     speak("Starting model training process.")
@@ -157,20 +239,16 @@ def open_application(app_name):
         if sys.platform == "darwin": # macOS
             subprocess.run(["open", "-a", app_name], check=True)
         elif sys.platform == "win32": # Windows
-            # For Windows, try direct execution first, then 'start' command
-            # The 'start' command is generally more reliable for opening apps by name
             try:
                 subprocess.run(['start', app_name], check=True, shell=True)
             except FileNotFoundError:
-                # If 'start' doesn't find it, try direct path if app_name looks like a path
-                # This part is more complex and might need specific app paths
                 speak(f"Could not find {app_name} via 'start' command. Trying direct execution (less reliable).")
                 subprocess.run([app_name], check=True, shell=True)
         elif sys.platform == "linux": # Linux
-            subprocess.run(["xdg-open", app_name], check=True) # General way to open files/apps
+            subprocess.run(["xdg-open", app_name], check=True)
         else:
             speak(f"Sorry, opening applications is not yet fully supported on your operating system.")
-            return # Exit if OS not supported
+            return
 
         speak(f"Opened {app_name} successfully.")
     except subprocess.CalledProcessError:
@@ -204,9 +282,8 @@ def search_web(query):
 def play_music(song_name):
     """Searches for and plays music on YouTube."""
     speak(f"Searching for {song_name} on YouTube and playing it.")
-    # Construct a Youtube URL
     Youtube_url = f"https://www.youtube.com/results?search_query={song_name.replace(' ', '+')}"
-    open_website(Youtube_url) # open_website function will handle opening browser
+    open_website(Youtube_url)
 
 def get_current_time():
     """Tells the current time."""
@@ -220,7 +297,6 @@ def get_current_date():
 
 def list_directory_contents(path="."):
     """Lists contents of a specified directory."""
-    # Ensure path is expanded (e.g., handles ~ for home directory)
     abs_path = os.path.expanduser(path)
 
     if not os.path.isdir(abs_path):
@@ -231,11 +307,11 @@ def list_directory_contents(path="."):
         contents = os.listdir(abs_path)
         if contents:
             speak(f"Contents of {os.path.basename(abs_path)}:")
-            spoken_items = ", ".join(contents[:5]) # Speak first 5 items
+            spoken_items = ", ".join(contents[:5])
             if len(contents) > 5:
                 spoken_items += f", and {len(contents) - 5} more."
             speak(spoken_items)
-            print(f"Full directory contents of {abs_path}: {contents}") # Print all for developer
+            print(f"Full directory contents of {abs_path}: {contents}")
         else:
             speak(f"The directory {os.path.basename(abs_path)} is empty.")
     except PermissionError:
@@ -264,8 +340,13 @@ def main_voice_assistant():
         # --- Command Handling ---
         # Prioritize more specific commands before broader ones if there's overlap
 
-        # 1. Personalize Greeting
-        if "my name is" in command:
+        # 1. Exit Commands (highest priority)
+        if "goodbye" in command or "exit" in command or "shut down" in command or "stop listening" in command:
+            speak("Goodbye. I am powering down.")
+            break
+
+        # 2. Personalize Greeting
+        elif "my name is" in command:
             name_parts = command.split("my name is", 1)
             if len(name_parts) > 1:
                 user_name = name_parts[1].strip().title()
@@ -273,11 +354,11 @@ def main_voice_assistant():
             else:
                 speak("I heard you say 'my name is', but I didn't catch your name. Could you please tell me your name?")
 
-        # 2. Maker/Creator
+        # 3. Maker/Creator
         elif "who built you" in command or "who is your maker" in command or "who created you" in command:
             speak("I am programmed by Thabang Mthimkulu.")
 
-        # 3. Basic Greetings and Chit-Chat
+        # 4. Basic Greetings and Chit-Chat
         elif "hello" in command or "hi" in command:
             speak(f"Hello there. How can I help you today?")
         elif "how are you" in command:
@@ -287,7 +368,20 @@ def main_voice_assistant():
         elif "thank you" in command or "thanks" in command:
             speak("You're welcome! Is there anything else I can assist you with?")
 
-        # 4. Desktop and File System Commands
+        # 5. Weather Command
+        elif "what's the weather" in command or "how's the weather" in command or "weather in" in command:
+            city = "Johannesburg" # Default city
+            if "weather in" in command:
+                city_parts = command.split("weather in", 1)
+                if len(city_parts) > 1:
+                    city = city_parts[1].strip()
+            get_weather(city)
+
+        # 6. Email Command
+        elif "open email" in command or "check email" in command or "open my email" in command:
+            open_email_client()
+
+        # 7. Desktop and File System Commands
         elif "go to desktop" in command or "open desktop folder" in command:
             try:
                 desktop_path = os.path.expanduser("~/Desktop")
@@ -315,7 +409,7 @@ def main_voice_assistant():
             else:
                 speak("I can only list contents of your Desktop, Documents, Downloads, or Home folder at the moment. Please specify one of these.")
 
-        # 5. Application Commands
+        # 8. Application Commands
         elif "open safari" in command:
             open_application("Safari")
         elif "open chrome" in command or "open google chrome" in command:
@@ -336,11 +430,11 @@ def main_voice_assistant():
             else:
                 speak("Which application would you like me to open? You can say 'open application' followed by the app name, like 'open application Safari'.")
 
-        # 6. Web Browse and Search Commands
+        # 9. Web Browse and Search Commands
         elif "open google" in command:
             open_website("https://www.google.com")
         elif "open youtube" in command:
-            open_website("https://www.youtube.com") # Standard YouTube URL
+            open_website("https://www.youtube.com") # More direct YouTube URL
         elif "open wikipedia" in command:
             open_website("https://www.wikipedia.org")
         elif "open ster-kinekor" in command or "go to ster-kinekor" in command:
@@ -377,29 +471,23 @@ def main_voice_assistant():
             else:
                 speak("Which website would you like me to open? Please say 'open website' followed by the address.")
 
-        # 7. Music Playback (YouTube)
-        elif "play music" in command or "play a song" in command or "play the song" in command:
-            song_query = ""
-            # Extract song query
-            if "play music" in command:
-                song_query = command.split("play music", 1)[1].strip()
-            elif "play a song" in command:
-                song_query = command.split("play a song", 1)[1].strip()
-            elif "play the song" in command:
-                song_query = command.split("play the song", 1)[1].strip()
-
+        # 10. Music Playback (YouTube) - Improved handling of "play music"
+        elif "play" in command and ("music" in command or "song" in command):
+            song_query = command.replace("play", "").replace("music", "").replace("song", "").strip()
+            if "on youtube" in song_query:
+                song_query = song_query.replace("on youtube", "").strip()
             if song_query:
                 play_music(song_query)
             else:
                 speak("What song or artist would you like me to play?")
 
-        # 8. Information Commands
+        # 11. Information Commands
         elif "what is the time" in command or "current time" in command:
             get_current_time()
         elif "what is the date" in command or "current date" in command:
             get_current_date()
 
-        # 9. Core AI functions (Sentiment Analysis)
+        # 12. Core AI functions (Sentiment Analysis)
         elif "train model" in command:
             speak("Initiating model training process.")
             train_new_model()
@@ -407,23 +495,48 @@ def main_voice_assistant():
         elif "predict sentiment" in command or "analyze sentiment" in command:
             handle_prediction_mode()
 
-        # 10. Help/Capability Inquiry
+        # 13. ChatGPT-like Q&A (General Questions) - MUST BE BEFORE GENERIC FALLBACK
+        elif "answer my question" in command or "tell me about" in command or "who is" in command or "what is" in command or "why is" in command or "how does" in command:
+            # Extract the actual question
+            query_parts = command.split("answer my question", 1)
+            if len(query_parts) == 1: # If "answer my question" wasn't used
+                query_parts = command.split("tell me about", 1)
+            if len(query_parts) == 1: # If "tell me about" wasn't used
+                # Try to extract the full question starting from known query prefixes
+                if "who is" in command:
+                    query_parts = command.split("who is", 1)
+                elif "what is" in command:
+                    query_parts = command.split("what is", 1)
+                elif "why is" in command:
+                    query_parts = command.split("why is", 1)
+                elif "how does" in command:
+                    query_parts = command.split("how does", 1)
+            
+            actual_query = ""
+            if len(query_parts) > 1:
+                actual_query = query_parts[1].strip()
+            else: # If none of the prefixes matched, assume the whole command is the question
+                actual_query = command.strip()
+
+            if actual_query:
+                ask_gemini(actual_query)
+            else:
+                speak("I can answer general questions. What would you like to know?")
+
+        # 14. Help/Capability Inquiry (Updated to reflect new features)
         elif "what can you do" in command:
             speak("I am programmed to train a sentiment analysis model, predict sentiment from text, and search the web.")
             speak("I can open applications like Safari or Calculator, or you can say 'open application' followed by the app name.")
             speak("I can open specific websites like Google, YouTube, Wikipedia, and Ster-Kinekor. I can also open any website if you say 'open website' followed by the address, like 'google dot com'.")
             speak("I can play music by searching YouTube for songs, tell you the time and date, and list contents of your main folders, including opening your desktop folder.")
+            speak("I can also get you the current weather for a city and open your email client.")
+            speak("And I can answer general questions, similar to ChatGPT.")
             speak("You can also ask me about my name or say 'my name is' followed by your name.")
 
-        # 11. Exit Commands
-        elif "goodbye" in command or "exit" in command or "shut down" in command or "stop listening" in command:
-            speak("Goodbye. I am powering down.")
-            break
-
-        # 12. Generic Fallback - important to be last
-        elif command: # Only respond if some command was actually recognized
+        # 15. Generic Fallback - IMPORTANT: This must be the last `elif`
+        elif command: # Only respond if some command was actually recognized (not empty string)
             speak("I heard that, but I'm not yet programmed to respond to that specific command.")
-            speak("For now, I can train the model, predict sentiment, open applications, open any website, search the web, play music, or tell you the time and date.")
+            speak("For now, I can train the model, predict sentiment, open applications, open any website, search the web, play music, tell you the time and date, get weather, open email, or answer general questions.")
             speak("You can also ask me about my name.")
             speak("You can also say 'what can you do' to hear a summary of my current abilities.")
 
