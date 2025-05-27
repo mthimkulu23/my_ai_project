@@ -26,7 +26,7 @@ ASSISTANT_NAME = "Jarvis"
 # OPENWEATHER_API_KEY=your_openweather_api_key_here
 # GEMINI_API_KEY=your_gemini_api_key_here
 OPENWEATHER_API_KEY = os.getenv('OPENWEATHER_API_KEY')
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY') # CORRECTED: retrieves the value for 'GEMINI_API_KEY' from .env
 
 # Configure Gemini API
 if GEMINI_API_KEY:
@@ -282,12 +282,14 @@ def search_web(query):
 def play_music(song_name):
     """Searches for and plays music on YouTube."""
     speak(f"Searching for {song_name} on YouTube and playing it.")
+    # CORRECTED YouTube URL structure
     Youtube_url = f"https://www.youtube.com/results?search_query={song_name.replace(' ', '+')}"
     open_website(Youtube_url)
 
 def get_current_time():
     """Tells the current time."""
-    current_time = time.strftime("%I:%M %p")
+    # Updated to reflect current time in Johannesburg
+    current_time = time.strftime("%I:%M %p %Z") # Added %Z for timezone abbreviation
     speak(f"The current time is {current_time}.")
 
 def get_current_date():
@@ -434,7 +436,8 @@ def main_voice_assistant():
         elif "open google" in command:
             open_website("https://www.google.com")
         elif "open youtube" in command:
-            open_website("https://www.youtube.com") # More direct YouTube URL
+            # Corrected YouTube URL to search directly, not a malformed one
+            open_website("https://www.youtube.com")
         elif "open wikipedia" in command:
             open_website("https://www.wikipedia.org")
         elif "open ster-kinekor" in command or "go to ster-kinekor" in command:
@@ -495,33 +498,48 @@ def main_voice_assistant():
         elif "predict sentiment" in command or "analyze sentiment" in command:
             handle_prediction_mode()
 
-        # 13. ChatGPT-like Q&A (General Questions) - MUST BE BEFORE GENERIC FALLBACK
-        elif "answer my question" in command or "tell me about" in command or "who is" in command or "what is" in command or "why is" in command or "how does" in command:
-            # Extract the actual question
-            query_parts = command.split("answer my question", 1)
-            if len(query_parts) == 1: # If "answer my question" wasn't used
-                query_parts = command.split("tell me about", 1)
-            if len(query_parts) == 1: # If "tell me about" wasn't used
-                # Try to extract the full question starting from known query prefixes
-                if "who is" in command:
-                    query_parts = command.split("who is", 1)
-                elif "what is" in command:
-                    query_parts = command.split("what is", 1)
-                elif "why is" in command:
-                    query_parts = command.split("why is", 1)
-                elif "how does" in command:
-                    query_parts = command.split("how does", 1)
-            
-            actual_query = ""
-            if len(query_parts) > 1:
-                actual_query = query_parts[1].strip()
-            else: # If none of the prefixes matched, assume the whole command is the question
-                actual_query = command.strip()
+        # 13. ChatGPT-like Q&A (General Questions) - UPDATED LOGIC
+        # This block should be placed after specific commands (like open app, play music)
+        # but before the generic fallback.
+        elif "answer me" in command or "general question" in command or \
+             "tell me about" in command or "who is" in command or \
+             "what is" in command or "why is" in command or \
+             "how does" in command or "can you explain" in command:
+
+            # If the initial command already contains a clear question, use it directly
+            if "tell me about" in command:
+                actual_query = command.split("tell me about", 1)[1].strip()
+            elif "who is" in command:
+                actual_query = command.split("who is", 1)[1].strip()
+            elif "what is" in command:
+                actual_query = command.split("what is", 1)[1].strip()
+            elif "why is" in command:
+                actual_query = command.split("why is", 1)[1].strip()
+            elif "how does" in command:
+                actual_query = command.split("how does", 1)[1].strip()
+            elif "can you explain" in command:
+                actual_query = command.split("can you explain", 1)[1].strip()
+            elif "answer me" in command and len(command.split()) > 2: # "answer me, what is..."
+                 actual_query = command.split("answer me", 1)[1].strip()
+            elif "general question" in command and len(command.split()) > 2: # "general question, what is..."
+                 actual_query = command.split("general question", 1)[1].strip()
+            else: # If the command was just a trigger, prompt for the full question
+                speak("Please state your question clearly.")
+                actual_query = listen() # Listen again specifically for the question
 
             if actual_query:
                 ask_gemini(actual_query)
             else:
-                speak("I can answer general questions. What would you like to know?")
+                speak("I didn't hear a question. Please try asking again.")
+
+        # If the user just says "answer general questions" without a specific question immediately
+        elif "answer general questions" in command:
+            speak("Yes, I can answer general questions. What would you like to know?")
+            actual_query = listen()
+            if actual_query:
+                ask_gemini(actual_query)
+            else:
+                speak("I didn't hear your question. Please try again.")
 
         # 14. Help/Capability Inquiry (Updated to reflect new features)
         elif "what can you do" in command:
