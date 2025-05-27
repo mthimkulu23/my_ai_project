@@ -64,8 +64,9 @@ def listen():
     r = sr.Recognizer()
     with sr.Microphone() as source:
         print(f"{ASSISTANT_NAME}: Listening...")
-        r.pause_threshold = 1 # Seconds of non-speaking audio before a phrase is considered complete
-        r.energy_threshold = 300 # Minimum audio energy to consider for recording
+        r.pause_threshold = 0.8 # Seconds of non-speaking audio before a phrase is considered complete
+        r.energy_threshold = 400 # Minimum audio energy to consider for recording
+        # r.adjust_for_ambient_noise(source) # Uncomment this line to dynamically adjust to ambient noise
         audio = r.listen(source)
     try:
         print(f"{ASSISTANT_NAME}: Recognizing...")
@@ -136,6 +137,21 @@ def handle_prediction_mode():
             speak(f"The predicted sentiment is: {sentiment}")
         time.sleep(0.5) # Short pause to prevent rapid listening loops
 
+def open_application(app_name):
+    """Opens a specified application on macOS."""
+    if sys.platform == "darwin": # Only works on macOS
+        try:
+            speak(f"Attempting to open {app_name}.")
+            # The 'open -a' command is specific to macOS for opening applications
+            subprocess.run(["open", "-a", app_name], check=True)
+            speak(f"Opened {app_name} successfully.")
+        except subprocess.CalledProcessError:
+            speak(f"Sorry, I couldn't find or open {app_name}. Please make sure it's installed and in your Applications folder.")
+        except FileNotFoundError:
+            speak(f"The 'open' command was not found. This function may only work on macOS.")
+    else:
+        speak(f"Sorry, opening applications is not yet supported on your operating system.")
+
 # --- Main Interaction Loop (Voice-controlled) ---
 def main_voice_assistant():
     """Main loop for the voice assistant."""
@@ -154,22 +170,69 @@ def main_voice_assistant():
     while True:
         command = listen()
 
-        if "train model" in command:
+        # --- New and Improved Command Handling ---
+
+        # 1. Personalize Greeting (more flexible)
+        if "my name is" in command:
+            name_parts = command.split("my name is", 1)
+            if len(name_parts) > 1:
+                user_name = name_parts[1].strip().title() # Capitalize first letter
+                speak(f"It's a pleasure to meet you, {user_name}. Hello {user_name}, how can I assist you today?")
+            else:
+                speak("I heard you say 'my name is', but I didn't catch your name. Could you please tell me your name?")
+        elif "i am Thabang" in command or "this is Thabang" in command: # Specific for your name
+            speak("It's a pleasure to meet you, Thabang. Hello Thabang, how can I assist you today?")
+
+        # 2. Maker/Creator
+        elif "who built you" in command or "who is your maker" in command or "who created you" in command:
+            speak("I am trained and built by Thabang Mthimkulu, who is my maker.")
+
+        # 3. Basic Greetings and Chit-Chat
+        elif "hello" in command or "hi" in command:
+            speak(f"Hello there. How can I help you today?")
+        elif "how are you" in command:
+            speak("I am an AI, so I don't have feelings, but I'm functioning perfectly. How can I help you?")
+        elif "what is your name" in command:
+            speak(f"My name is {ASSISTANT_NAME}.")
+        elif "thank you" in command or "thanks" in command:
+            speak("You're welcome! Is there anything else I can assist you with?")
+
+        # 4. Desktop Commands
+        elif "open safari" in command:
+            open_application("Safari")
+        elif "open chrome" in command or "open google chrome" in command:
+            open_application("Google Chrome")
+        elif "open notes" in command:
+            open_application("Notes")
+        elif "open terminal" in command:
+            open_application("Terminal")
+        elif "open calculator" in command:
+            open_application("Calculator")
+        elif "open messages" in command:
+            open_application("Messages")
+
+        # 5. Core AI functions
+        elif "train model" in command:
             speak("Initiating model training process.")
             train_new_model()
             speak("Training process completed.")
         elif "predict sentiment" in command or "analyze sentiment" in command:
             handle_prediction_mode()
-        elif "hello" in command or "hi" in command:
-            speak(f"Hello there. How can I help you today?")
-        elif "what is your name" in command:
-            speak(f"My name is {ASSISTANT_NAME}.")
-        elif "goodbye" in command or "exit" in command or "shut down" in command:
+        elif "what don't you understand" in command or "what can you do" in command:
+            speak("I am programmed to train a sentiment analysis model, predict sentiment from text, and open certain applications like Safari, Chrome, Notes, or Terminal on your desktop.")
+            speak("I can also tell you about my maker. Just try saying 'train model', 'predict sentiment', or 'open Safari'.")
+
+
+        # 6. Exit Commands
+        elif "goodbye" in command or "exit" in command or "shut down" in command or "stop listening" in command:
             speak("Goodbye. I am powering down.")
             break
+
+        # 7. Generic Fallback (modify this message to be more helpful)
         elif command: # If a command was recognized but not specifically handled
             speak("I heard that, but I'm not yet programmed to respond to that specific command.")
-            speak("For now, I can 'train model' or 'predict sentiment'.")
+            speak("For now, I can train the model, predict sentiment, or help open applications like Safari or Chrome.")
+            speak("You can also ask me about my maker or say 'my name is' followed by your name.")
 
 if __name__ == "__main__":
     main_voice_assistant()
