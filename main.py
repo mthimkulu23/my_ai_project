@@ -29,12 +29,32 @@ OPENWEATHER_API_KEY = os.getenv('OPENWEATHER_API_KEY')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY') # CORRECTED: retrieves the value for 'GEMINI_API_KEY' 
 
 # Configure Gemini API
+gemini_model = None # Initialize to None first
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-pro')
+    try:
+        # Dynamically find a suitable model that supports 'generateContent'
+        # We'll prefer models with "gemini-pro" in their name for general tasks
+        available_models = [m for m in genai.list_models() if "generateContent" in m.supported_generation_methods]
+
+        # Prioritize 'gemini-pro' if available, as it's the general-purpose model
+        found_gemini_pro = next((m for m in available_models if 'gemini-pro' in m.name), None)
+
+        if found_gemini_pro:
+            gemini_model = genai.GenerativeModel(found_gemini_pro.name)
+            print(f"{ASSISTANT_NAME}: Configured Gemini API with model: {found_gemini_pro.name}")
+        elif available_models:
+            # Fallback to the first available model if 'gemini-pro' isn't found
+            gemini_model = genai.GenerativeModel(available_models[0].name)
+            print(f"{ASSISTANT_NAME}: Configured Gemini API with fallback model: {available_models[0].name}")
+        else:
+            print(f"{ASSISTANT_NAME}: Warning: No suitable Gemini models found that support 'generateContent'.")
+
+    except Exception as e:
+        print(f"{ASSISTANT_NAME}: Error configuring Gemini API: {e}")
+        print(f"{ASSISTANT_NAME}: ChatGPT-like functionality will be disabled.")
 else:
-    print("Warning: GEMINI_API_KEY not found. ChatGPT-like functionality will be disabled.")
-    gemini_model = None
+    print(f"{ASSISTANT_NAME}: Warning: GEMINI_API_KEY not found. ChatGPT-like functionality will be disabled.")
 
 # --- Global variable for the TTS engine ---
 engine = None
@@ -508,9 +528,14 @@ def main_voice_assistant():
         elif "answer me" in command or "general question" in command or \
              "tell me about" in command or "who is" in command or \
              "what is" in command or "why is" in command or \
-             "how does" in command or "can you explain" in command:
+             "how does" in command or "can you explain" in command or \
+             "can you answer" in command or "jarvis answer" in command or \
+             "ask you a question" in command or "i have a question" in command or \
+             "tell me something" in command: # Added more general triggers
 
-            # If the initial command already contains a clear question, use it directly
+            actual_query = "" # Initialize actual_query
+
+            # Prioritize extracting the question if a common phrase is present
             if "tell me about" in command:
                 actual_query = command.split("tell me about", 1)[1].strip()
             elif "who is" in command:
@@ -523,11 +548,17 @@ def main_voice_assistant():
                 actual_query = command.split("how does", 1)[1].strip()
             elif "can you explain" in command:
                 actual_query = command.split("can you explain", 1)[1].strip()
-            elif "answer me" in command and len(command.split()) > 2: # "answer me, what is..."
-                 actual_query = command.split("answer me", 1)[1].strip()
-            elif "general question" in command and len(command.split()) > 2: # "general question, what is..."
-                 actual_query = command.split("general question", 1)[1].strip()
-            else: # If the command was just a trigger, prompt for the full question
+            # New specific splits for added triggers
+            elif "can you answer" in command and len(command.split()) > 3: # e.g., "can you answer what is the time"
+                actual_query = command.split("can you answer", 1)[1].strip()
+            elif "jarvis answer" in command and len(command.split()) > 2: # e.g., "jarvis answer how are you"
+                actual_query = command.split("jarvis answer", 1)[1].strip()
+            elif "tell me something about" in command:
+                 actual_query = command.split("tell me something about", 1)[1].strip()
+
+            # If no specific question was extracted, and the command itself is just a trigger,
+            # then ask for the full question.
+            if not actual_query:
                 speak("Please state your question clearly.")
                 actual_query = listen() # Listen again specifically for the question
 
