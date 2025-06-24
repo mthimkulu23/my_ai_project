@@ -57,7 +57,7 @@ This project demonstrates a basic AI application for sentiment analysis using Py
 
 2.  **Run the main application:**
     ```bash
-    python main.py
+     python -m src.main
     ```
     * The first time you run it, it will check for an existing model. If none is found, it will automatically train a new one using the data in `data/training_data.csv`.
     * You will then be prompted to either `(t)rain` a new model or `(p)redict` sentiment.
