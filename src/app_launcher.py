@@ -1,105 +1,136 @@
-# src/app_launcher.py
-import subprocess
 import os
-import sys
-import time
+import subprocess
+import webbrowser
+import platform
+from datetime import datetime # Added for time/date functions
+
+# Assuming speak is available or imported within this module
 from src.voice_io import speak
 
 def open_email_client():
-    """Opens the default email client or a webmail service."""
+    """Opens the default email client."""
     speak("Opening your email client.")
-    if sys.platform == "darwin": # macOS
-        subprocess.run(["open", "-a", "Mail"], check=False)
-    elif sys.platform == "win32": # Windows
-        os.startfile("mailto:")
-    elif sys.platform == "linux": # Linux
-        subprocess.run(["xdg-open", "mailto:"], check=False)
-    else:
-        speak("Sorry, I don't know how to open the email client on this operating system.")
+    try:
+        if platform.system() == "Darwin": # macOS
+            subprocess.call(['open', '-a', 'Mail'])
+        elif platform.system() == "Windows":
+            os.startfile("mailto:")
+        else: # Linux (xdg-open is common)
+            subprocess.call(['xdg-open', 'mailto:'])
+    except Exception as e:
+        speak(f"Sorry, I couldn't open the email client: {e}")
 
 def open_application(app_name):
-    """Opens a specified application based on the operating system."""
+    """Opens a specified application."""
+    speak(f"Opening {app_name}.")
     try:
-        speak(f"Attempting to open {app_name}.")
-        if sys.platform == "darwin": # macOS
-            subprocess.run(["open", "-a", app_name], check=True)
-        elif sys.platform == "win32": # Windows
-            try:
-                subprocess.run(['start', app_name], check=True, shell=True)
-            except FileNotFoundError:
-                speak(f"Could not find {app_name} via 'start' command. Trying direct execution (less reliable).")
-                subprocess.run([app_name], check=True, shell=True)
-        elif sys.platform == "linux": # Linux
-            subprocess.run(["xdg-open", app_name], check=True)
-        else:
-            speak(f"Sorry, opening applications is not yet fully supported on your operating system.")
-            return
-
-        speak(f"Opened {app_name} successfully.")
-    except subprocess.CalledProcessError:
-        speak(f"Sorry, I couldn't find or open {app_name}. Please make sure it's installed and accessible.")
+        if platform.system() == "Darwin": # macOS
+            # For applications, 'open -a' is usually the best approach
+            subprocess.call(['open', '-a', app_name])
+        elif platform.system() == "Windows":
+            # For Windows, you might need the full path to the .exe or a known command
+            # This is a very basic attempt. For robustness, you'd need a mapping or search.
+            os.startfile(app_name) # Tries to open by name if it's in PATH or a known association
+        else: # Linux
+            # For Linux, applications are often launched by their command name
+            subprocess.call([app_name.lower()]) # Convert to lowercase, common for Linux commands
+            speak(f"Application opening for {platform.system()} is not fully implemented yet for {app_name}. Trying best effort.")
     except FileNotFoundError:
-        speak(f"The command to open {app_name} was not found. This function may not work as expected on your OS.")
+        speak(f"Sorry, I couldn't find the application '{app_name}'. Please ensure it's installed and accessible.")
     except Exception as e:
-        speak(f"An unexpected error occurred while trying to open {app_name}: {e}")
+        speak(f"An error occurred while trying to open {app_name}: {e}")
 
 def open_website(url):
-    """Opens a specified URL in the default web browser."""
-    speak(f"Opening {url} in your browser.")
+    """Opens a website in the default web browser."""
+    speak(f"Opening {url}.")
     try:
-        if sys.platform == "darwin": # macOS
-            subprocess.run(["open", url], check=True)
-        elif sys.platform == "win32": # Windows
-            os.startfile(url)
-        elif sys.platform == "linux": # Linux
-            subprocess.run(["xdg-open", url], check=True)
-        else:
-            speak("Sorry, I can't open web links on this operating system.")
+        webbrowser.open_new_tab(url)
     except Exception as e:
-        speak(f"Sorry, I couldn't open the website. There was an error: {e}")
+        speak(f"Sorry, I couldn't open the website: {e}")
 
 def search_web(query):
-    """Performs a Google search for the given query."""
-    speak(f"Searching for {query} on Google.")
-    search_url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
-    open_website(search_url)
+    """Performs a web search using Google."""
+    search_url = f"https://www.google.com/search?q={query}"
+    speak(f"Searching the web for {query}.")
+    try:
+        webbrowser.open_new_tab(search_url)
+    except Exception as e:
+        speak(f"Sorry, I couldn't perform the web search: {e}")
 
-def play_music(song_name):
-    """Searches for and plays music on YouTube."""
-    speak(f"Searching for {song_name} on YouTube and playing it.")
-    Youtube_url = f"https://www.youtube.com/results?search_query={song_name.replace(' ', '+')}"
-    open_website(Youtube_url)
+def play_music(song_query):
+    """Searches and plays music on YouTube."""
+    # Note: Your original YouTube URL in config was "https://www.youtube.com"
+    # This URL for search is likely more effective:
+    Youtube_url = f"https://www.youtube.com/results?search_query={song_query}"
+    speak(f"Playing {song_query} on YouTube.")
+    try:
+        webbrowser.open_new_tab(Youtube_url)
+    except Exception as e:
+        speak(f"Sorry, I couldn't play music: {e}")
 
 def get_current_time():
-    """Tells the current time."""
-    current_time = time.strftime("%I:%M %p %Z")
+    """Speaks the current time."""
+    now = datetime.now()
+    current_time = now.strftime("%I:%M %p") # e.g., 03:05 PM
     speak(f"The current time is {current_time}.")
 
 def get_current_date():
-    """Tells the current date."""
-    current_date = time.strftime("%A, %B %d, %Y")
-    speak(f"Today is {current_date}.")
+    """Speaks the current date."""
+    now = datetime.now()
+    current_date = now.strftime("%A, %B %d, %Y") # e.g., Tuesday, June 24, 2025
+    speak(f"Today's date is {current_date}.")
 
-def list_directory_contents(path="."):
+def list_directory_contents(path):
     """Lists contents of a specified directory."""
     abs_path = os.path.expanduser(path)
-
     if not os.path.isdir(abs_path):
-        speak(f"Sorry, {path} is not a valid directory or it does not exist.")
+        speak(f"Sorry, '{path}' is not a valid directory.")
         return
 
+    # Nicer name for speaking
+    display_name = abs_path.split(os.sep)[-1] if abs_path != os.path.expanduser("~") else 'your home directory'
+    speak(f"Listing contents of {display_name}.")
     try:
         contents = os.listdir(abs_path)
         if contents:
-            speak(f"Contents of {os.path.basename(abs_path)}:")
-            spoken_items = ", ".join(contents[:5])
+            speak("Here are some items:")
+            # Limit to first few items to avoid very long speeches
+            for item in contents[:5]:
+                speak(item)
             if len(contents) > 5:
-                spoken_items += f", and {len(contents) - 5} more."
-            speak(spoken_items)
-            print(f"Full directory contents of {abs_path}: {contents}")
+                speak(f"And {len(contents) - 5} more items.")
         else:
-            speak(f"The directory {os.path.basename(abs_path)} is empty.")
-    except PermissionError:
-        speak(f"Sorry, I don't have permission to access the directory: {os.path.basename(abs_path)}.")
+            speak("The directory is empty.")
     except Exception as e:
-        speak(f"Sorry, I couldn't list the directory contents. Error: {e}")
+        speak(f"Sorry, I couldn't list the directory contents: {e}")
+
+# --- NEW FUNCTION FOR OPENING BROWSER TABS ---
+def open_browser_tab(url="https://www.google.com"):
+    """Opens a new tab in the default web browser.
+       On macOS, tries to specifically open in Chrome if available.
+    """
+    speak(f"Opening a new tab.")
+    
+    system = platform.system()
+    
+    try:
+        if system == "Darwin": # macOS
+            # Attempt to open in Google Chrome specifically on macOS
+            try:
+                # This command is often more reliable for specific browsers on macOS
+                subprocess.run(['open', '-a', 'Google Chrome', url], check=True)
+            except FileNotFoundError:
+                # Fallback to default browser if Chrome isn't found or 'open -a' fails
+                print("Google Chrome application not found, trying default browser.")
+                webbrowser.open_new_tab(url)
+            except subprocess.CalledProcessError as e:
+                print(f"Error opening Chrome with 'open -a': {e}, trying default browser.")
+                webbrowser.open_new_tab(url)
+        else: # Windows/Linux
+            webbrowser.open_new_tab(url)
+        
+        speak("A new browser tab has been opened.")
+    except webbrowser.Error as e:
+        speak(f"Sorry, I couldn't open a web browser tab: {e}")
+    except Exception as e:
+        speak(f"An unexpected error occurred while trying to open a tab: {e}")
