@@ -84,15 +84,15 @@ def handle_prediction_mode():
             sentiment = predictor.predict_sentiment(user_input_voice)
             speak(f"The predicted sentiment is: {sentiment}")
 
-# --- Main Interaction Loop (Voice-controlled) ---
+
 def main_voice_assistant():
     """Main loop for the voice assistant."""
     initialize_tts_engine()
-    initialize_gemini() # Initialize Gemini after TTS
+    initialize_gemini() 
 
     speak(f"Hello, I am {ASSISTANT_NAME}. How may I assist you?")
 
-    # Initial model check moved here for better flow
+   
     if not os.path.exists(MODEL_PATH) or not os.path.exists(VECTORIZER_PATH):
         speak("No trained sentiment model found. I need to train a new one first.")
         train_new_model()
@@ -102,10 +102,10 @@ def main_voice_assistant():
 
     while True:
         command = listen()
-        if not command: # Handle empty command (e.g., failed recognition)
+        if not command: 
             continue
             
-        command_lower = command.lower() # Use lowercased command for consistent matching
+        command_lower = command.lower() 
 
         if "goodbye" in command_lower or "exit" in command_lower or "shut down" in command_lower or "stop listening" in command_lower:
             speak("Goodbye. I am powering down.")
@@ -145,7 +145,7 @@ def main_voice_assistant():
         elif "go to desktop" in command_lower or "open desktop folder" in command_lower:
             try:
                 desktop_path = os.path.expanduser("~/Desktop")
-                open_application(desktop_path) # Reuse open_application if it can handle folders (it should on macOS)
+                open_application(desktop_path) 
                 speak("Opened your desktop folder.")
             except Exception as e:
                 speak(f"Sorry, I couldn't open the desktop folder: {e}")
@@ -153,7 +153,7 @@ def main_voice_assistant():
         elif "list files" in command_lower or "show files" in command_lower or "list directory" in command_lower:
             speak("Which directory would you like me to list? For example, say 'desktop' or 'documents'.")
             dir_command = listen()
-            if dir_command: # Ensure something was heard
+            if dir_command: 
                 if "desktop" in dir_command.lower():
                     list_directory_contents("~/Desktop")
                 elif "documents" in dir_command.lower():
@@ -187,11 +187,12 @@ def main_voice_assistant():
             else:
                 speak("Which application would you like me to open? You can say 'open application' followed by the app name, like 'open application Safari'.")
 
-        # NEW COMMAND: Open browser tab
+      
         elif "open a tab on chrome" in command_lower or \
              "open new tab" in command_lower or \
              "open browser tab" in command_lower:
-            open_browser_tab() # This will default to google.com
+            open_browser_tab() 
+            
 
         elif "open google" in command_lower:
             open_website(GOOGLE_URL)
@@ -199,7 +200,7 @@ def main_voice_assistant():
             open_website(YOUTUBE_URL)
         elif "open wikipedia" in command_lower:
             open_website(WIKIPEDIA_URL)
-        elif "open chatgpt" in command_lower: # Added specific ChatGPT command
+        elif "open chatgpt" in command_lower: 
             open_website(CHATGPT_URL)
         elif "open linkedin" in command_lower:
             open_website(LINKEDIN_URL)
@@ -256,9 +257,7 @@ def main_voice_assistant():
         elif "predict sentiment" in command_lower or "analyze sentiment" in command_lower:
             handle_prediction_mode()
 
-        # REVISED GEMINI QUESTION HANDLING:
-        # This block should be towards the end of your specific command checks
-        # to act as a fallback for general questions.
+     
         elif any(phrase in command_lower for phrase in [
             "answer me", "general question", "tell me about", "who is",
             "what is", "why is", "how does", "can you explain",
@@ -266,13 +265,12 @@ def main_voice_assistant():
             "i have a question", "tell me something",
             "where can we improve", "what should i do", "how can i",
             "advise me", "recommendation", "give me advice", "about",
-            "what can you tell me", "can you tell me" # Added more general triggers
+            "what can you tell me", "can you tell me"
         ]) or (len(command_lower.split()) > 2 and not any(kw in command_lower for kw in ["open", "play", "search", "train", "predict", "time", "date", "weather", "list"])):
-            # The 'or (len(command_lower.split()) > 2 and not any(kw in command_lower for kw in [...]))'
-            # acts as a general catch-all for longer commands not explicitly matched.
+        
             
             actual_query = ""
-            # Prioritize specific extractions if present
+         
             if "tell me about" in command_lower:
                 actual_query = command_lower.split("tell me about", 1)[1].strip()
             elif "who is" in command_lower:
@@ -291,7 +289,7 @@ def main_voice_assistant():
                 actual_query = command_lower.split("jarvis answer", 1)[1].strip()
             elif "tell me something about" in command_lower:
                  actual_query = command_lower.split("tell me something about", 1)[1].strip()
-            elif "where can we improve on" in command_lower: # Specific for the user's query
+            elif "where can we improve on" in command_lower: 
                 actual_query = command_lower.split("where can we improve on", 1)[1].strip()
             elif "what should i do about" in command_lower:
                 actual_query = command_lower.split("what should i do about", 1)[1].strip()
@@ -307,25 +305,25 @@ def main_voice_assistant():
                 actual_query = command_lower.split("what about", 1)[1].strip()
             elif "can you tell me about" in command_lower:
                  actual_query = command_lower.split("can you tell me about", 1)[1].strip()
-            elif "tell me" in command_lower and not actual_query: # More general "tell me" if not caught by "tell me about"
+            elif "tell me" in command_lower and not actual_query: 
                 actual_query = command_lower.split("tell me", 1)[1].strip()
 
-            # If no specific extraction worked, use the whole command as the query for Gemini
+           
             if not actual_query:
-                actual_query = command_lower # Send the full command to Gemini
+                actual_query = command_lower 
 
             if actual_query:
-                speak("Let me check that for you.") # Acknowledge before asking Gemini
+                speak("Let me check that for you.") 
                 ask_gemini(actual_query)
             else:
-                speak("I didn't hear a question. Please try asking again.") # Fallback if even the general catch fails to yield a query
+                speak("I didn't hear a question. Please try asking again.") 
 
 
         elif "what can you do" in command_lower:
             speak("I am programmed to train a sentiment analysis model, predict sentiment from text, and search the web.")
             speak("I can open applications like Safari or Calculator, or you can say 'open application' followed by the app name.")
             speak("I can open specific websites like Google, YouTube, Wikipedia, ChatGPT, LinkedIn, and Ster-Kinekor. I can also open any website if you say 'open website' followed by the address, like 'google dot com'.")
-            speak("I can open a new tab in your browser.") # Added new ability
+            speak("I can open a new tab in your browser.") 
             speak("I can play music by searching YouTube for songs, tell you the time and date, and list contents of your main folders, including opening your desktop folder.")
             speak("I can also get you the current weather for a city and open your email client.")
             speak("And I can answer general questions, similar to ChatGPT.")
